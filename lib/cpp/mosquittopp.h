@@ -42,6 +42,43 @@ mosqpp_EXPORT int lib_init();
 mosqpp_EXPORT int lib_cleanup();
 mosqpp_EXPORT int topic_matches_sub(const char *sub, const char *topic, bool *result);
 
+/**
+ * Class: _mosq_callbacks
+ */
+class _mosq_callbacks{
+private:
+	void (*_on_connect)(int /*rc*/);
+	void (*_on_disconnect)(int /*rc*/);
+	void (*_on_publish)(int /*mid*/);
+	void (*_on_message)(const struct mosquitto_message * /*message*/);
+	void (*_on_subscribe)(int /*mid*/, int /*qos_count*/, const int * /*granted_qos*/);
+	void (*_on_unsubscribe)(int /*mid*/);
+	void (*_on_log)(int /*level*/, const char * /*str*/);
+	void (*_on_error)();
+public:
+	_mosq_callbacks(void (*_on_connect)(int /*rc*/)=NULL,
+		void (*_on_disconnect)(int /*rc*/)=NULL,
+		void (*_on_publish)(int /*mid*/)=NULL,
+		void (*_on_message)(const struct mosquitto_message * /*message*/)=NULL,
+		void (*_on_subscribe)(int /*mid*/, int /*qos_count*/, const int * /*granted_qos*/)=NULL,
+		void (*_on_unsubscribe)(int /*mid*/)=NULL,
+		void (*_on_log)(int /*level*/, const char * /*str*/)=NULL,
+		void (*_on_error)()=NULL);
+
+	~_mosq_callbacks();
+	
+	// names in the functions commented to prevent unused parameter warning
+	void on_connect(int /*rc*/);
+	void on_disconnect(int /*rc*/);
+	void on_publish(int /*mid*/);
+	void on_message(const struct mosquitto_message * /*message*/);
+	void on_subscribe(int /*mid*/, int /*qos_count*/, const int * /*granted_qos*/);
+	void on_unsubscribe(int /*mid*/);
+	void on_log(int /*level*/, const char * /*str*/);
+	void on_error();
+}
+
+
 /*
  * Class: mosquittopp
  *
@@ -51,6 +88,7 @@ mosqpp_EXPORT int topic_matches_sub(const char *sub, const char *topic, bool *re
 class mosqpp_EXPORT mosquittopp {
 	private:
 		struct mosquitto *m_mosq;
+		_mosq_callbacks* on_callbacks;
 	public:
 		mosquittopp(const char *id=NULL, bool clean_session=true);
 		virtual ~mosquittopp();
@@ -91,15 +129,6 @@ class mosqpp_EXPORT mosquittopp {
 		int threaded_set(bool threaded=true);
 		int socks5_set(const char *host, int port=1080, const char *username=NULL, const char *password=NULL);
 
-		// names in the functions commented to prevent unused parameter warning
-		virtual void on_connect(int /*rc*/) {return;}
-		virtual void on_disconnect(int /*rc*/) {return;}
-		virtual void on_publish(int /*mid*/) {return;}
-		virtual void on_message(const struct mosquitto_message * /*message*/) {return;}
-		virtual void on_subscribe(int /*mid*/, int /*qos_count*/, const int * /*granted_qos*/) {return;}
-		virtual void on_unsubscribe(int /*mid*/) {return;}
-		virtual void on_log(int /*level*/, const char * /*str*/) {return;}
-		virtual void on_error() {return;}
 };
 
 }

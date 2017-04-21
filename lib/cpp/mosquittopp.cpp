@@ -22,44 +22,44 @@ namespace mosqpp {
 
 static void on_connect_wrapper(struct mosquitto *mosq, void *userdata, int rc)
 {
-	class mosquittopp *m = (class mosquittopp *)userdata;
+	class _mosq_callbacks *m = (class _mosq_callbacks *)userdata;
 	m->on_connect(rc);
 }
 
 static void on_disconnect_wrapper(struct mosquitto *mosq, void *userdata, int rc)
 {
-	class mosquittopp *m = (class mosquittopp *)userdata;
+	class _mosq_callbacks *m = (class _mosq_callbacks *)userdata;
 	m->on_disconnect(rc);
 }
 
 static void on_publish_wrapper(struct mosquitto *mosq, void *userdata, int mid)
 {
-	class mosquittopp *m = (class mosquittopp *)userdata;
+	class _mosq_callbacks *m = (class _mosq_callbacks *)userdata;
 	m->on_publish(mid);
 }
 
 static void on_message_wrapper(struct mosquitto *mosq, void *userdata, const struct mosquitto_message *message)
 {
-	class mosquittopp *m = (class mosquittopp *)userdata;
+	class _mosq_callbacks *m = (class _mosq_callbacks *)userdata;
 	m->on_message(message);
 }
 
 static void on_subscribe_wrapper(struct mosquitto *mosq, void *userdata, int mid, int qos_count, const int *granted_qos)
 {
-	class mosquittopp *m = (class mosquittopp *)userdata;
+	class _mosq_callbacks *m = (class _mosq_callbacks *)userdata;
 	m->on_subscribe(mid, qos_count, granted_qos);
 }
 
 static void on_unsubscribe_wrapper(struct mosquitto *mosq, void *userdata, int mid)
 {
-	class mosquittopp *m = (class mosquittopp *)userdata;
+	class _mosq_callbacks *m = (class _mosq_callbacks *)userdata;
 	m->on_unsubscribe(mid);
 }
 
 
 static void on_log_wrapper(struct mosquitto *mosq, void *userdata, int level, const char *str)
 {
-	class mosquittopp *m = (class mosquittopp *)userdata;
+	class _mosq_callbacks *m = (class _mosq_callbacks *)userdata;
 	m->on_log(level, str);
 }
 
@@ -106,9 +106,71 @@ int topic_matches_sub(const char *sub, const char *topic, bool *result)
 	return mosquitto_topic_matches_sub(sub, topic, result);
 }
 
+_mosq_callbacks::_mosq_callbacks(void (*_on_connect)(int /*rc*/),
+	void (*_on_disconnect)(int /*rc*/),
+	void (*_on_publish)(int /*mid*/),
+	void (*_on_message)(const struct mosquitto_message * /*message*/),
+	void (*_on_subscribe)(int /*mid*/, int /*qos_count*/, const int * /*granted_qos*/),
+	void (*_on_unsubscribe)(int /*mid*/),
+	void (*_on_log)(int /*level*/, const char * /*str*/),
+	void (*_on_error)()):_on_connect(_on_connect),
+						 _on_disconnect(_on_disconnect),
+						 _on_publish(_on_publish),
+						 _on_message(_on_message),
+						 _on_subscribe(_on_subscribe),
+						 _on_unsubscribe(_on_unsubscribe),
+						 _on_log(_on_log),
+						 _on_error(_on_error){
+
+}
+
+_mosq_callbacks::~_mosq_callbacks(){
+
+}
+
+void _mosq_callbacks::on_connect(int rc){
+	if(_on_connect) _on_connect(rc);
+	else return;
+}
+
+void _mosq_callbacks::on_disconnect(int rc){
+	if(_on_disconnect) _on_disconnect(rc);
+	else return;
+}
+
+void _mosq_callbacks::on_publish(int mid){
+	if(_on_publish) _on_publish(mid);
+	else return;
+}
+
+void _mosq_callbacks::on_message(const struct mosquitto_message* message){
+	if(_on_message) _on_message(message);
+	else return;
+}
+
+void _mosq_callbacks::on_subscribe(int mid, int qos_count, const int* granted_qos){
+	if(_on_subscribe) _on_subscribe(mid,qos_count,granted_qos);
+	else return;
+}
+
+void _mosq_callbacks::on_unsubscribe(int mid){
+	if(_on_unsubscribe) _on_unsubscribe(mid);
+	else return;
+}
+
+void _mosq_callbacks::on_log(int level,const char* str){
+	if(_on_log) _on_log(level,str);
+	else return;
+}
+
+void _mosq_callbacks::on_error(){
+	if(_on_error) _on_error();
+	else return;
+}
+
 mosquittopp::mosquittopp(const char *id, bool clean_session)
 {
-	m_mosq = mosquitto_new(id, clean_session, this);
+	m_mosq = mosquitto_new(id, clean_session, this->on_callbacks);
 	mosquitto_connect_callback_set(m_mosq, on_connect_wrapper);
 	mosquitto_disconnect_callback_set(m_mosq, on_disconnect_wrapper);
 	mosquitto_publish_callback_set(m_mosq, on_publish_wrapper);
@@ -126,7 +188,7 @@ mosquittopp::~mosquittopp()
 int mosquittopp::reinitialise(const char *id, bool clean_session)
 {
 	int rc;
-	rc = mosquitto_reinitialise(m_mosq, id, clean_session, this);
+	rc = mosquitto_reinitialise(m_mosq, id, clean_session, this->on_callbacks);
 	if(rc == MOSQ_ERR_SUCCESS){
 		mosquitto_connect_callback_set(m_mosq, on_connect_wrapper);
 		mosquitto_disconnect_callback_set(m_mosq, on_disconnect_wrapper);
